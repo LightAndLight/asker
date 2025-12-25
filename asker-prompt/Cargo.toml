@@ -1,0 +1,8 @@
+[package]
+name = "asker-prompt"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+gtk4 = "0.10.3"
+inotify = { version = "0.11.0", default-features = false }
