@@ -26,7 +26,7 @@ args@{
   cargoConfig ? {},
 }:
 let
-  nixifiedLockHash = "e7afc8d5bbc0e3fa62aab6761dba43fda65666bb7ba8400edee0fc0c041e0f9d";
+  nixifiedLockHash = "96f97dff2d88154361b4097adf94e298b7c95e334415c615d6a91b17e9c15172";
   workspaceSrc = if args.workspaceSrc == null then ./. else args.workspaceSrc;
   currentLockHash = builtins.hashFile "sha256" (workspaceSrc + /Cargo.lock);
   lockHashIgnored = if ignoreLockHash
@@ -76,6 +76,7 @@ in
     dependencies = {
       gtk4 = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".gtk4."0.10.3" { inherit profileName; }).out;
       inotify = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".inotify."0.11.0" { inherit profileName; }).out;
+      libc = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".libc."0.2.178" { inherit profileName; }).out;
     };
   });
   

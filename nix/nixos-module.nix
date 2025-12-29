@@ -102,6 +102,14 @@ in
                 };
               }
               {
+                name = "${cfg.runtimeDir}/${name}/description";
+                value = {
+                  "L+" = {
+                    argument = "${pkgs.writeText "asker-key-${name}-description" value.description}";
+                  };
+                };
+              }
+              {
                 name = "${cfg.runtimeDir}/${name}/garbage";
                 value = {
                   f = {

@@ -1,5 +1,7 @@
+#![feature(peer_credentials_unix_socket)]
 use std::{
     collections::{HashMap, HashSet},
+    ffi::CString,
     fs::File,
     io::{BufRead, BufReader, Write},
     os::unix::net::UnixStream,
@@ -12,6 +14,8 @@ use gtk4::{gdk::pango, gio, glib, prelude::*};
 use inotify::Inotify;
 
 const APP_ID: &str = "io.ielliott.asker-prompt";
+
+const SPECIAL_ENTRIES: [&str; 2] = ["description", "garbage"];
 
 struct Env {
     asker_dir: String,
@@ -33,6 +37,8 @@ fn read_env() -> Env {
 }
 
 fn request_input(socket_path: Rc<Path>) {
+    let key_path: Rc<Path> = Rc::from(socket_path.parent().unwrap());
+
     let socket = match UnixStream::connect(&socket_path) {
         Err(err) if err.kind() == std::io::ErrorKind::ConnectionRefused => {
             eprintln!("error: connection to {} refused", socket_path.display());
@@ -61,11 +67,22 @@ fn request_input(socket_path: Rc<Path>) {
     let app = gtk4::Application::builder().application_id(APP_ID).build();
     app.connect_activate(glib::clone!(
         #[strong]
+        key_path,
+        #[strong]
         socket,
-        move |app| on_activate(socket.clone(), app)
+        move |app| on_activate(key_path.clone(), socket.clone(), app)
     ));
     app.set_accels_for_action("win.close", &["Escape"]);
     let _exit_code = app.run();
+}
+
+fn get_username(uid: u32) -> Option<String> {
+    let result = unsafe { libc::getpwuid(uid) };
+    if result.is_null() {
+        None
+    } else {
+        unsafe { Some(CString::from_raw((*result).pw_name).into_string().unwrap()) }
+    }
 }
 
 fn main() -> glib::ExitCode {
@@ -108,7 +125,7 @@ fn main() -> glib::ExitCode {
                     entry.unwrap_or_else(|err| panic!("failed to read pending request: {err}"));
 
                 let entry_file_name = entry.file_name();
-                if entry_file_name != "garbage"
+                if !SPECIAL_ENTRIES.contains(&entry_file_name.to_str().unwrap())
                     && !garbage.contains(entry_file_name.to_str().unwrap())
                 {
                     let socket_path = Rc::from(entry.path());
@@ -140,7 +157,18 @@ fn main() -> glib::ExitCode {
     }
 }
 
-fn on_activate(socket: Rc<Mutex<UnixStream>>, app: &gtk4::Application) {
+fn on_activate(key_path: Rc<Path>, socket: Rc<Mutex<UnixStream>>, app: &gtk4::Application) {
+    let peer_cred = {
+        let socket = socket.lock().unwrap();
+        match socket.peer_cred() {
+            Err(err) => {
+                eprintln!("error: socket peer credentials failed: {err}");
+                None
+            }
+            Ok(peer_cred) => Some(peer_cred),
+        }
+    };
+
     let window = gtk4::ApplicationWindow::builder()
         .application(app)
         .title("asker-prompt")
@@ -151,6 +179,47 @@ fn on_activate(socket: Rc<Mutex<UnixStream>>, app: &gtk4::Application) {
         None => 16,
         Some(font_description) => font_description.size() / pango::SCALE,
     };
+
+    let message_box = gtk4::Box::builder()
+        .orientation(gtk4::Orientation::Vertical)
+        .hexpand(false)
+        .build();
+
+    let peer_username: Option<String> =
+        { peer_cred.and_then(|peer_cred| get_username(peer_cred.uid)) };
+
+    let key_description: Option<String> = {
+        let key_description_path: PathBuf = key_path.join("description");
+        match File::open(&key_description_path) {
+            Err(err) => {
+                eprintln!(
+                    "error: failed to open {}: {err}",
+                    key_description_path.display()
+                );
+                None
+            }
+            Ok(file) => BufReader::new(file)
+                .lines()
+                .next()
+                .and_then(|line| match line {
+                    Err(err) => {
+                        eprintln!(
+                            "error: failed to read {}: {err}",
+                            key_description_path.display()
+                        );
+                        None
+                    }
+                    Ok(value) => Some(value),
+                }),
+        }
+    };
+    let message = format!(
+        "{} is requesting {}",
+        peer_username.as_deref().unwrap_or("unknown user"),
+        key_description.as_deref().unwrap_or("unknown key")
+    );
+    let message_label = gtk4::Label::new(Some(&message));
+    message_box.append(&message_label);
 
     let inputs_box = gtk4::Box::builder()
         .orientation(gtk4::Orientation::Horizontal)
@@ -172,6 +241,7 @@ fn on_activate(socket: Rc<Mutex<UnixStream>>, app: &gtk4::Application) {
         .valign(gtk4::Align::Center)
         .halign(gtk4::Align::Center)
         .build();
+    main_box.append(&message_box);
     main_box.append(&inputs_box);
 
     window.set_child(Some(&main_box));

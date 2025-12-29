@@ -1,7 +1,7 @@
 {
   inputs = {
     flake-utils.url = "github:numtide/flake-utils";
-    rust-overlay.url = "github:oxalica/rust-overlay?rev=6b5c52313aaf3f3e1a0a6757bb89846edfb5195c";
+    rust-overlay.url = "github:oxalica/rust-overlay";
     cargo2nix = {
       url = "github:cargo2nix/cargo2nix";
       inputs.flake-utils.follows = "flake-utils";
@@ -9,7 +9,8 @@
   };
   outputs = { self, nixpkgs, flake-utils, rust-overlay, cargo2nix  }:
     let
-      rustVersion = "1.92.0";
+      rustChannel = "nightly";
+      rustVersion = "2025-12-28";
 
       packageOverrides =
         pkgs:
@@ -126,7 +127,7 @@
 
           pkgs = withRustOverlay;
           rustPkgs = pkgs.rustBuilder.makePackageSet {
-            inherit packageOverrides rustVersion;
+            inherit packageOverrides rustChannel rustVersion;
             packageFun = import ./Cargo.nix;
           };
         in
@@ -161,7 +162,7 @@
         inherit packages;
         devShell = pkgs.mkShell {
           buildInputs = [
-            (pkgs.rust-bin.stable.${rustVersion}.default.override {
+            (pkgs.rust-bin.${rustChannel}.${rustVersion}.default.override {
               extensions = [
                 "cargo"
                 "clippy"
