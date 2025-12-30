@@ -1,6 +1,6 @@
 # `asker`
 
-`asker` allows daemons to asker for user input.
+`asker` allows daemons to ask for user input.
 
 <./nix/nixos-module.nix> provides options for the `asker` system.
 An `asker` configuration has several *keys*, which are different inputs that can be requested by name.
