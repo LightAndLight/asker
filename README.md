@@ -14,6 +14,13 @@ For each key there is a corresponding group named `asker-key-{KEY}`.
 `asker KEY` creates a request in a way that only members of the `asker-key-{KEY}` group can read the response.
 Read more about the implementation in [the design notes](./notes/2025-12-26-design.md).
 
+Example usage:
+
+* <https://github.com/LightAndLight/personal-configs/blob/533bc27168fc155b56ed055294b9feda06308733/system/sync.nix#L54-L59> (configure `asker` in NixOS)
+* <https://github.com/LightAndLight/personal-configs/blob/533bc27168fc155b56ed055294b9feda06308733/system/sync.nix#L63> (add system service's user to an `asker` key's group)
+* <https://github.com/LightAndLight/personal-configs/blob/533bc27168fc155b56ed055294b9feda06308733/system/sync.nix#L77> (request a key)
+* <https://github.com/LightAndLight/personal-configs/blob/533bc27168fc155b56ed055294b9feda06308733/users/isaac/default.nix#L32> (enable `asker-prompt` in `home-manager`)
+
 ## Motivation
 
 I run [Syncthing](https://syncthing.net/) to keep my [KeepassXC](https://keepassxc.org/) in sync across devices.
